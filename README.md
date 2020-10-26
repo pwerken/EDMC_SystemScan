@@ -8,7 +8,7 @@ water-, and earth-like world and the terraformable worlds.
 
 ## Installation
 
- 1. Clone this repository or download and extract the [repository zip archive](https://github.com/pwerken/EDMC_SystemScan/archive/master.zip)
+ 1. Clone this repository or download and extract the [repository zip archive](https://github.com/pwerken/EDMC_SystemScan/archive/main.zip)
 	in your EDMC plugin directory.
  2. Then (re)start EDMC.
 
