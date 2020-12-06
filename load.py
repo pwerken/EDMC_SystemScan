@@ -69,7 +69,7 @@ def plugin_app(parent):
     :returns: a tk Widget
     """
     this.lbl_status = tk.Label(parent)
-    this.lbl_bodies = tk.Label(parent, justify=tk.LEFT, anchor=tk.W)
+    this.lbl_bodies = tk.Label(parent, justify=tk.LEFT, anchor=tk.W, wraplength=200)
     update_ui()
     return this.lbl_status, this.lbl_bodies
 
@@ -202,8 +202,7 @@ def update_ui():
     this.lbl_bodies['bg'] = this.lbl_status['bg']
 
     if len(this.tomap) > 0:
-        this.lbl_status['text'] += (len(this.tomap) - 1)*'\n'
-        this.lbl_bodies['text'] = '\n'.join(this.tomap)
+        this.lbl_bodies['text'] = '  '.join(this.tomap)
     elif this.edsm_error:
         this.lbl_bodies['text'] = '? error'
     else:
@@ -232,7 +231,7 @@ def truncate_body(body, system):
     """
     if body.startswith(system):
         sys_length = len(system) + 1
-        return body[sys_length:]
+        return body[sys_length:].replace(' ', '\u2009')
     return body
 
 
