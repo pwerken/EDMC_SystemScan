@@ -24,7 +24,6 @@ this.lbl_status = None
 this.lbl_bodies = None
 
 # The PlanetClass and Terraformed states we're interested in mapping
-this.planetclass = ['Earthlike body', 'Water world', 'Ammonia world']
 this.terraform = ['Terraformable', 'Terraforming', 'Terraformed']
 
 # ASync EDSM system data query
@@ -33,9 +32,6 @@ this.queue = Queue()
 this.session = requests.Session()
 this.edsm_data = []
 this.edsm_error = False
-this.edsm_subType = ['Earth-like world', 'Water world', 'Ammonia world']
-this.edsm_no_terraform = [None, 'Not terraformable']
-
 
 def plugin_start3(plugin_dir):
     """
@@ -149,12 +145,22 @@ def handle_scan(entry):
     if 'PlanetClass' in entry and body not in this.bodies:
         this.bodies.append(body)
         this.count += 1
-        if entry['PlanetClass'] in this.planetclass or \
-           entry['TerraformState'] in this.terraform:
-            body_name = truncate_body(body, this.system)
-            if body_name not in this.tomap:
-                this.tomap.append(body_name)
-                this.tomap.sort(key=natural_key)
+
+        body_name = truncate_body(body, this.system)
+        if entry['PlanetClass'] == 'Earthlike body':
+            body_name += 'ᴱᴸᵂ'
+        elif entry['PlanetClass'] == 'Water world':
+            body_name += 'ᵂᵂ'
+        elif entry['PlanetClass'] == 'Ammonia world':
+            body_name += 'ᴬᵂ'
+        elif entry['TerraformState'] in this.terraform:
+            body_name += 'ᵀ'
+        else:
+            return True
+
+        if body_name not in this.tomap:
+            this.tomap.append(body_name)
+            this.tomap.sort(key=natural_key)
         return True
     if 'StarType' in entry and body not in this.bodies:
         this.bodies.append(body)
@@ -269,10 +275,20 @@ def worker():
         for body in reply['bodies']:
             if body['type'] != 'Planet':
                 continue
-            if body['subType'] in this.edsm_subType or \
-               body['terraformingState'] not in this.edsm_no_terraform:
-                body_name = truncate_body(body['name'], this.system)
-                if body_name not in this.edsm_data:
-                    this.edsm_data.append(body_name)
+
+            body_name = truncate_body(body['name'], this.system)
+            if body['subType'] == 'Earth-like world':
+                body_name += 'ᴱᴸᵂ'
+            elif body['subType'] == 'Water world':
+                body_name += 'ᵂᵂ'
+            elif body['subType'] == 'Ammonia world':
+                body_name += 'ᴬᵂ'
+            elif body['terraformingState'] not in [None, 'Not terraformable']:
+                body_name += 'ᵀ'
+            else:
+                continue
+
+            if body_name not in this.edsm_data:
+                this.edsm_data.append(body_name)
 
         this.edsm_data.sort(key=natural_key)
