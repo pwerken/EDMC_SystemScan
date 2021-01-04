@@ -116,7 +116,6 @@ def handle_system_jump(entry):
     :returns: a boolean to indicate if the UI needs updating
     """
     handle_startup(entry)
-    this.count += 1
     return True
 
 
@@ -187,8 +186,6 @@ def update_ui():
     Update the UI elements with the system scan progress and the interesting
     body names.
     """
-    if this.count > len(this.bodies):
-        this.count = this.total
     if this.count == this.total and len(this.tomap) < len(this.edsm_data):
         this.tomap = this.edsm_data
 
