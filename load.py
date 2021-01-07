@@ -130,7 +130,7 @@ def handle_honk(entry):
     if entry['Progress'] == 1.0:
         this.count = this.total
     elif this.count == 0:
-        this.count = int(round(this.total * entry['Progress']))
+        this.count = int(this.total * entry['Progress'])
     return True
 
 
