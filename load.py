@@ -89,10 +89,6 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
         update = handle_honk(entry)
     elif entry['event'] == 'FSSAllBodiesFound':
         update = handle_all_bodies_found(entry)
-    elif entry['event'] == 'NavBeaconScan':
-        reset_data()
-        this.system = system
-        this.total = entry['NumBodies']
     elif entry['event'] == 'Scan':
         update = handle_scan(entry)
     if update:
@@ -140,6 +136,9 @@ def handle_scan(entry):
     :param entry: The journal entry as a dictionary
     :returns: a boolean to indicate if the UI needs updating
     """
+    if entry['ScanType'] == 'NavBeaconDetail':
+        return False
+
     body = entry['BodyName']
     if 'PlanetClass' in entry and body not in this.bodies:
         this.bodies.append(body)
@@ -164,9 +163,6 @@ def handle_scan(entry):
     if 'StarType' in entry and body not in this.bodies:
         this.bodies.append(body)
         this.count += 1
-        return True
-    if entry['ScanType'] == 'NavBeaconDetail':
-        this.total -= 1
         return True
     return False
 
