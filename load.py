@@ -1,287 +1,233 @@
-import sys
+import requests
+import re
 import tkinter as tk
 
 from queue import Queue
 from threading import Thread
-import requests
-import re
 
-_EDSM_URL = 'https://www.edsm.net/api-system-v1/bodies'
-_EDSM_TIMEOUT = 20
+PLUGIN_NAME = 'SystemScan'
 
-# For holding module globals
-this = sys.modules[__name__]
+class SystemScan:
 
-# Track information about the scanned state of the current system
-this.system = None
-this.bodies = []
-this.tomap = []
-this.count = 0
-this.total = 0
+    EDSM_URL = 'https://www.edsm.net/api-system-v1/bodies'
+    EDSM_TIMEOUT = 20
 
-# UI element
-this.lbl_status = None
-this.lbl_bodies = None
+    # The PlanetClass and Terraformed states we're interested in mapping
+    TERRAFORM = ['Terraformable', 'Terraforming', 'Terraformed']
 
-# The PlanetClass and Terraformed states we're interested in mapping
-this.terraform = ['Terraformable', 'Terraforming', 'Terraformed']
+    def __init__(self):
+        self.reset_data()
 
-# ASync EDSM system data query
-this.thead = None
-this.queue = Queue()
-this.session = requests.Session()
-this.edsm_data = []
-this.edsm_error = False
+        # ASync EDSM system data query
+        self.thead = None
+        self.queue = Queue()
+        self.edsm_error = False
 
-def plugin_start3(plugin_dir):
-    """
-    Load the plugin.
-    :param plugin_dir: directory that contains the main .py file
-    """
-    this.thread = Thread(target=worker, name='Mapping worker')
-    this.thread.daemon = True
-    this.thread.start()
-    return "SystemScan"
+    def load(self):
+        self.thread = Thread(target=self.worker)
+        self.thread.name = PLUGIN_NAME +' worker'
+        self.thread.daemon = True
+        self.thread.start()
+        return PLUGIN_NAME
 
+    def unload(self):
+        self.queue.put(None)
+        self.thread.join()
+        self.thread = None
 
-def plugin_start(plugin_dir):
-    """
-    Legacy (python 2.7) method for loading the plugin.
-    :param plugin_dir: directory that contains the main .py file
-    """
-    return plugin_start3(plugin_dir)
+    def create_ui(self, parent):
+        self.lbl_status = tk.Label(parent)
+        self.lbl_bodies = tk.Label(parent, justify=tk.LEFT, anchor=tk.W, wraplength=200)
+        self.update_ui()
 
+        self.lbl_status.bind_all('<<SystemScanUpdate>>', self.worker_update)
+        return self.lbl_status, self.lbl_bodies
 
-def plugin_stop():
-    this.queue.put(None)
-    this.thread.join()
-    this.thread = None
+    def update_ui(self):
+        if self.count == self.total and len(self.tomap) < len(self.edsm_data):
+            self.tomap = self.edsm_data
 
-
-def plugin_app(parent):
-    """
-    Create mainwindow content and return it.
-    :param parent: the parent frame for this entry.
-    :returns: a tk Widget
-    """
-    this.lbl_status = tk.Label(parent)
-    this.lbl_bodies = tk.Label(parent, justify=tk.LEFT, anchor=tk.W, wraplength=200)
-    update_ui()
-    return this.lbl_status, this.lbl_bodies
-
-
-def journal_entry(cmdr, is_beta, system, station, entry, state):
-    """
-    Receive a journal entry.
-    :param cmdr: The Cmdr name, or None if not yet known
-    :param is_beta: whether the player is in a Beta universe.
-    :param system: The current system, or None if not yet known
-    :param station: The current station, or None if not docked or not yet known
-    :param entry: The journal entry as a dictionary
-    :param state: A dictionary containing info about the Cmdr, current ship and cargo
-    """
-    update = False
-    if entry['event'] == 'StartUp':
-        handle_startup(entry)
-    elif entry['event'] in ['FSDJump', 'CarrierJump']:
-        update = handle_system_jump(entry)
-    elif entry['event'] == 'FSSDiscoveryScan':
-        update = handle_honk(entry)
-    elif entry['event'] == 'FSSAllBodiesFound':
-        update = handle_all_bodies_found(entry)
-    elif entry['event'] == 'Scan':
-        update = handle_scan(entry)
-    if update:
-        update_ui()
-
-
-def handle_startup(entry):
-    """
-    Process the EDMC generated 'StartUp' event.
-    :param entry: The journal entry as a dictionary
-    """
-    reset_data()
-    this.system = entry['StarSystem']
-    this.queue.put(this.system)
-
-
-def handle_system_jump(entry):
-    """
-    Process the 'FSDJump' / 'CarrierJump' journal event.
-    :param entry: The journal entry as a dictionary
-    :returns: a boolean to indicate if the UI needs updating
-    """
-    handle_startup(entry)
-    return True
-
-
-def handle_honk(entry):
-    """
-    Process the 'FSSDiscoveryScan' journal event.
-    :param entry: The journal entry as a dictionary
-    :returns: a boolean to indicate if the UI needs updating
-    """
-    this.system = entry['SystemName']
-    this.total = entry['BodyCount']
-    if entry['Progress'] == 1.0:
-        this.count = this.total
-    elif this.count == 0:
-        this.count = int(this.total * entry['Progress'])
-    return True
-
-
-def handle_scan(entry):
-    """
-    Process the 'Scan' journal event.
-    :param entry: The journal entry as a dictionary
-    :returns: a boolean to indicate if the UI needs updating
-    """
-    if entry['ScanType'] == 'NavBeaconDetail':
-        return False
-
-    body = entry['BodyName']
-    if 'PlanetClass' in entry and body not in this.bodies:
-        this.bodies.append(body)
-        this.count += 1
-
-        body_name = truncate_body(body, this.system)
-        if entry['PlanetClass'] == 'Earthlike body':
-            body_name += 'ᴱᴸᵂ'
-        elif entry['PlanetClass'] == 'Water world':
-            body_name += 'ᵂᵂ'
-        elif entry['PlanetClass'] == 'Ammonia world':
-            body_name += 'ᴬᵂ'
-        elif entry['TerraformState'] in this.terraform:
-            body_name += 'ᵀ'
-        else:
-            return True
-
-        if body_name not in this.tomap:
-            this.tomap.append(body_name)
-            this.tomap.sort(key=natural_key)
-        return True
-    if 'StarType' in entry and body not in this.bodies:
-        this.bodies.append(body)
-        this.count += 1
-        return True
-    return False
-
-
-def handle_all_bodies_found(entry):
-    """
-    Process the 'AllBodiesFound' journal event.
-    :param entry: The journal entry as a dictionary
-    :returns: a boolean to indicate if the UI needs updating
-    """
-    this.count = this.total = entry['Count']
-    return True
-
-
-def update_ui():
-    """
-    Update the UI elements with the system scan progress and the interesting
-    body names.
-    """
-    if this.count == this.total and len(this.tomap) < len(this.edsm_data):
-        this.tomap = this.edsm_data
-
-    this.lbl_status['text'] = ' {} / {}'.format(this.count, this.total)
-    if this.total == 0:
-        this.lbl_bodies['fg'] = 'black'
-        this.lbl_bodies['bg'] = 'red'
-        this.lbl_bodies['text'] = 'Discovery Scan'
-        return
-    if this.count < this.total:
-        this.lbl_bodies['fg'] = 'black'
-        this.lbl_bodies['bg'] = 'orange'
-        this.lbl_bodies['text'] = 'Full Spectrum Scan'
-        return
-
-    this.lbl_bodies['fg'] = this.lbl_status['fg']
-    this.lbl_bodies['bg'] = this.lbl_status['bg']
-
-    if len(this.tomap) > 0:
-        this.lbl_bodies['text'] = '  '.join(this.tomap)
-    elif this.edsm_error:
-        this.lbl_bodies['text'] = '? error'
-    else:
-        this.lbl_bodies['text'] = '-'
-
-
-def reset_data():
-    """
-    Clear all the counters and system body lists.
-    """
-    this.system = None
-    this.total = 0
-    this.count = 0
-    this.bodies = []
-    this.tomap = []
-    this.edsm_data = []
-
-
-def truncate_body(body, system):
-    """
-    This function tries to truncate long body names.
-    This is done by removing the system name from the start of the body name.
-    :param body: name of the body
-    :param system: name of the system
-    :returns: the truncated body name
-    """
-    if body.startswith(system):
-        sys_length = len(system) + 1
-        return body[sys_length:].replace(' ', '\u2009')
-    return body
-
-
-def natural_key(string_):
-    """
-    Helper function for natural sort order.
-
-    See https://blog.codinghorror.com/sorting-for-humans-natural-sort-order/
-    """
-    return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', string_)]
-
-
-def worker():
-    """
-    EDSM-Query worker.
-
-    Processess `this.queue` until the queued item is None.
-    """
-    while True:
-        systemName = this.queue.get()
-        if systemName == None:
+        self.lbl_status['text'] = ' {} / {}'.format(self.count, self.total)
+        if self.total == 0:
+            self.lbl_bodies['fg'] = 'black'
+            self.lbl_bodies['bg'] = 'red'
+            self.lbl_bodies['text'] = 'Discovery Scan'
             return
-        if len(this.edsm_data) > 0:
-            continue
 
-        data = { 'systemName': systemName }
-        r = this.session.post(_EDSM_URL, data=data, timeout=_EDSM_TIMEOUT)
-        reply = r.json()
+        if self.count < self.total:
+            self.lbl_bodies['fg'] = 'black'
+            self.lbl_bodies['bg'] = 'orange'
+            self.lbl_bodies['text'] = 'Full Spectrum Scan'
+            return
 
-        this.edsm_error = (len(reply) == 0)
-        if this.edsm_error:
-            continue
+        self.lbl_bodies['fg'] = self.lbl_status['fg']
+        self.lbl_bodies['bg'] = self.lbl_status['bg']
 
-        this.edsm_data = []
-        for body in reply['bodies']:
-            if body['type'] != 'Planet':
-                continue
+        if len(self.tomap) > 0:
+            self.lbl_bodies['text'] = '  '.join(self.tomap)
+        elif self.edsm_error:
+            self.lbl_bodies['text'] = '? error'
+        else:
+            self.lbl_bodies['text'] = '-'
 
-            body_name = truncate_body(body['name'], this.system)
-            if body['subType'] == 'Earth-like world':
+    def on_journal_entry(self, entry):
+        update = False
+        if entry['event'] == 'StartUp':
+            self.handle_startup(entry)
+        elif entry['event'] in ['FSDJump', 'CarrierJump']:
+            update = self.handle_system_jump(entry)
+        elif entry['event'] == 'FSSDiscoveryScan':
+            update = self.handle_honk(entry)
+        elif entry['event'] == 'FSSAllBodiesFound':
+            update = self.handle_all_bodies_found(entry)
+        elif entry['event'] == 'Scan':
+            update = self.handle_scan(entry)
+        if update:
+            self.update_ui()
+
+    def handle_startup(self, entry):
+        self.reset_data()
+        self.system = entry['StarSystem']
+        self.queue.put(self.system)
+        return True
+
+    def handle_system_jump(self, entry):
+        return self.handle_startup(entry)
+
+    def handle_honk(self, entry):
+        self.system = entry['SystemName']
+        self.total = entry['BodyCount']
+        if entry['Progress'] == 1.0:
+            self.count = self.total
+        elif self.count == 0:
+            self.count = int(self.total * entry['Progress'])
+        return True
+
+    def handle_scan(self, entry):
+        if entry['ScanType'] == 'NavBeaconDetail':
+            return False
+
+        body = entry['BodyName']
+        if 'PlanetClass' in entry and body not in self.bodies:
+            self.bodies.append(body)
+            self.count += 1
+
+            body_name = self.truncate_body(body, self.system)
+            if entry['PlanetClass'] == 'Earthlike body':
                 body_name += 'ᴱᴸᵂ'
-            elif body['subType'] == 'Water world':
+            elif entry['PlanetClass'] == 'Water world':
                 body_name += 'ᵂᵂ'
-            elif body['subType'] == 'Ammonia world':
+            elif entry['PlanetClass'] == 'Ammonia world':
                 body_name += 'ᴬᵂ'
-            elif body['terraformingState'] not in [None, 'Not terraformable']:
+            elif entry['TerraformState'] in self.TERRAFORM:
                 body_name += 'ᵀ'
             else:
+                return True
+
+            if body_name not in self.tomap:
+                self.tomap.append(body_name)
+                self.tomap.sort(key=self.natural_key)
+            return True
+
+        if 'StarType' in entry and body not in self.bodies:
+            self.bodies.append(body)
+            self.count += 1
+            return True
+
+        return False
+
+
+    def handle_all_bodies_found(self, entry):
+        self.count = self.total = entry['Count']
+        return True
+
+    def reset_data(self):
+        self.system = None
+        self.total = 0
+        self.count = 0
+        self.bodies = []
+        self.tomap = []
+        self.edsm_data = []
+
+    def worker_update(self, event):
+        self.update_ui()
+
+    def worker(self):
+        session = requests.Session()
+
+        while True:
+            systemName = self.queue.get()
+            if systemName == None:
+                return
+
+            if len(self.edsm_data) > 0:
                 continue
 
-            if body_name not in this.edsm_data:
-                this.edsm_data.append(body_name)
+            data = { 'systemName': systemName }
+            r = session.post(self.EDSM_URL, data=data, timeout=self.EDSM_TIMEOUT)
+            reply = r.json()
 
-        this.edsm_data.sort(key=natural_key)
+            self.edsm_error = (len(reply) == 0)
+            if self.edsm_error:
+                continue
+
+            self.edsm_data = []
+            for body in reply['bodies']:
+                if body['type'] != 'Planet':
+                    continue
+
+                body_name = self.truncate_body(body['name'], self.system)
+                if body['subType'] == 'Earth-like world':
+                    body_name += 'ᴱᴸᵂ'
+                elif body['subType'] == 'Water world':
+                    body_name += 'ᵂᵂ'
+                elif body['subType'] == 'Ammonia world':
+                    body_name += 'ᴬᵂ'
+                elif body['terraformingState'] not in [None, 'Not terraformable']:
+                    body_name += 'ᵀ'
+                else:
+                    continue
+
+                if body_name not in self.edsm_data:
+                    self.edsm_data.append(body_name)
+
+            self.edsm_data.sort(key=self.natural_key)
+            self.lbl_status.event_generate('<<SystemScanUpdate>>', when='tail')
+
+    @staticmethod
+    def truncate_body(body, system):
+        """
+        This function tries to truncate long body names.
+        This is done by removing the system name from the start of the body name.
+        :param body: name of the body
+        :param system: name of the system
+        :returns: the truncated body name
+        """
+        if body.startswith(system):
+            sys_length = len(system) + 1
+            return body[sys_length:].replace(' ', '\u2009')
+        return body
+
+    @staticmethod
+    def natural_key(key):
+        """
+        Helper function for natural sort order.
+
+        See https://blog.codinghorror.com/sorting-for-humans-natural-sort-order/
+        """
+        return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', key)]
+
+
+s = SystemScan()
+
+def plugin_start3(plugin_dir):
+    return s.load()
+
+def plugin_stop():
+    return s.unload()
+
+def plugin_app(parent):
+    return s.create_ui(parent)
+
+def journal_entry(cmdr, is_beta, system, station, entry, state):
+    return s.on_journal_entry(entry)
