@@ -80,6 +80,8 @@ class SystemScan:
             update = self.handle_honk(entry)
         elif entry['event'] == 'FSSAllBodiesFound':
             update = self.handle_all_bodies_found(entry)
+        elif entry['event'] == 'SAAScanComplete':
+            update = self.handle_surface_scan(entry)
         elif entry['event'] == 'Scan':
             update = self.handle_scan(entry)
         if update:
@@ -102,6 +104,13 @@ class SystemScan:
         elif self.count == 0:
             self.count = int(self.total * entry['Progress'])
         return True
+
+    def handle_surface_scan(self, entry):
+        body = entry['BodyName']
+        if body in self.bodies:
+            self.bodies.remove(body)
+        self.count -= 1
+        return False
 
     def handle_scan(self, entry):
         if entry['ScanType'] == 'NavBeaconDetail':
