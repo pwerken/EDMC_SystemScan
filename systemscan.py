@@ -5,30 +5,22 @@ import tkinter as tk
 from queue import Queue
 from threading import Thread
 
-PLUGIN_NAME = 'SystemScan'
 
 class SystemScan:
 
-    EDSM_URL = 'https://www.edsm.net/api-system-v1/bodies'
-    EDSM_TIMEOUT = 20
-
-    # The PlanetClass and Terraformed states we're interested in mapping
     TERRAFORM = ['Terraformable', 'Terraforming', 'Terraformed']
 
     def __init__(self):
         self.reset_data()
-
-        # ASync EDSM system data query
         self.thead = None
         self.queue = Queue()
         self.edsm_error = False
 
     def load(self):
-        self.thread = Thread(target=self.worker)
-        self.thread.name = PLUGIN_NAME +' worker'
+        self.thread = Thread(target=self.worker, name="SystemScan worker")
         self.thread.daemon = True
         self.thread.start()
-        return PLUGIN_NAME
+        return 'SystemScan'
 
     def unload(self):
         self.queue.put(None)
@@ -37,17 +29,23 @@ class SystemScan:
 
     def create_ui(self, parent):
         self.lbl_status = tk.Label(parent)
-        self.lbl_bodies = tk.Label(parent, justify=tk.LEFT, anchor=tk.W, wraplength=200)
+        self.lbl_bodies = tk.Label(parent)
+        self.lbl_bodies['justify'] = tk.LEFT
+        self.lbl_bodies['anchor'] = tk.W
+        self.lbl_bodies['wraplength'] = 200
         self.update_ui()
 
         self.lbl_status.bind_all('<<SystemScanUpdate>>', self.worker_update)
         return self.lbl_status, self.lbl_bodies
 
     def update_ui(self):
+        if not self.lbl_status or not self.lbl_bodies:
+            return
+
         if self.count == self.total and len(self.tomap) < len(self.edsm_data):
             self.tomap = self.edsm_data
 
-        self.lbl_status['text'] = ' {} / {}'.format(self.count, self.total)
+        self.lbl_status['text'] = f'{self.count} / {self.total}'
         if self.total == 0:
             self.lbl_bodies['fg'] = 'black'
             self.lbl_bodies['bg'] = 'red'
@@ -103,6 +101,7 @@ class SystemScan:
             self.count = self.total
         elif self.count == 0:
             self.count = int(self.total * entry['Progress'])
+
         return True
 
     def handle_surface_scan(self, entry):
@@ -145,7 +144,6 @@ class SystemScan:
 
         return False
 
-
     def handle_all_bodies_found(self, entry):
         self.count = self.total = entry['Count']
         return True
@@ -162,18 +160,22 @@ class SystemScan:
         self.update_ui()
 
     def worker(self):
+        EDSM_URL = 'https://www.edsm.net/api-system-v1/bodies'
+        EDSM_TIMEOUT = 20
+        EDSM_TERRAFORM = [None, 'Not terraformable']
+
         session = requests.Session()
 
         while True:
             systemName = self.queue.get()
-            if systemName == None:
+            if systemName is None:
                 return
 
             if len(self.edsm_data) > 0:
                 continue
 
-            data = { 'systemName': systemName }
-            r = session.post(self.EDSM_URL, data=data, timeout=self.EDSM_TIMEOUT)
+            data = {'systemName': systemName}
+            r = session.post(EDSM_URL, data=data, timeout=EDSM_TIMEOUT)
             reply = r.json()
 
             self.edsm_error = (len(reply) == 0)
@@ -192,7 +194,7 @@ class SystemScan:
                     body_name += 'ᵂᵂ'
                 elif body['subType'] == 'Ammonia world':
                     body_name += 'ᴬᵂ'
-                elif body['terraformingState'] not in [None, 'Not terraformable']:
+                elif body['terraformingState'] not in EDSM_TERRAFORM:
                     body_name += 'ᵀ'
                 else:
                     continue
@@ -206,8 +208,7 @@ class SystemScan:
     @staticmethod
     def truncate_body(body, system):
         """
-        This function tries to truncate long body names.
-        This is done by removing the system name from the start of the body name.
+        Remove the system name from the start of the body name.
         :param body: name of the body
         :param system: name of the system
         :returns: the truncated body name
@@ -222,21 +223,6 @@ class SystemScan:
         """
         Helper function for natural sort order.
 
-        See https://blog.codinghorror.com/sorting-for-humans-natural-sort-order/
+        https://blog.codinghorror.com/sorting-for-humans-natural-sort-order/
         """
         return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', key)]
-
-
-s = SystemScan()
-
-def plugin_start3(plugin_dir):
-    return s.load()
-
-def plugin_stop():
-    return s.unload()
-
-def plugin_app(parent):
-    return s.create_ui(parent)
-
-def journal_entry(cmdr, is_beta, system, station, entry, state):
-    return s.on_journal_entry(entry)
