@@ -14,13 +14,10 @@ water-, and earth-like world and the terraformable worlds.
 
 ## Usage
 
-When entering the system a plugin will display a red 'Discovery Scan' notice.
-After honking it will show a orange 'Full Spectrum Scan'. When that is also
-completed the interesting bodies will be listed.
+When entering the system this plugin will display a red 'Discovery Scan'
+notice.  After honking it will change to a orange 'Full Spectrum Scan'.
+When that is also completed the interesting bodies will be listed.
 
-If you've already visited the system before and scanned it completely, the FSS
-step will be skipped.  In this case the will be no journal events for
-populating the interesting bodies listing.
-
-To work around this the plugin always asks [EDSM](https://www.edsm.net/) for
-the bodies on entering a system.
+On entering a system this plugin also queries [EDSM](https://www.edsm.net/)
+for all the bodies.  This is so the interesting bodies can be listed in the
+case where the 'Discovery Scan' reports that FSS is alread complete.
