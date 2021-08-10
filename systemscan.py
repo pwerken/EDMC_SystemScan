@@ -213,7 +213,7 @@ class SystemScan:
         :param system: name of the system
         :returns: the truncated body name
         """
-        if body.startswith(system):
+        if body.startswith(system+' '):
             sys_length = len(system) + 1
             return body[sys_length:].replace(' ', '\u2009')
         return body
