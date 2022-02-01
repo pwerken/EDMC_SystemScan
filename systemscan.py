@@ -78,8 +78,6 @@ class SystemScan:
             update = self.handle_honk(entry)
         elif entry['event'] == 'FSSAllBodiesFound':
             update = self.handle_all_bodies_found(entry)
-        elif entry['event'] == 'SAAScanComplete':
-            update = self.handle_surface_scan(entry)
         elif entry['event'] == 'Scan':
             update = self.handle_scan(entry)
         if update:
@@ -104,13 +102,6 @@ class SystemScan:
 
         return True
 
-    def handle_surface_scan(self, entry):
-        body = entry['BodyName']
-        if body in self.bodies:
-            self.bodies.remove(body)
-        self.count -= 1
-        return False
-
     def handle_scan(self, entry):
         if entry['ScanType'] == 'NavBeaconDetail':
             return False
@@ -118,7 +109,8 @@ class SystemScan:
         body = entry['BodyName']
         if 'PlanetClass' in entry and body not in self.bodies:
             self.bodies.append(body)
-            self.count += 1
+            if self.count < self.total:
+                self.count += 1
 
             body_name = self.truncate_body(body, self.system)
             if entry['PlanetClass'] == 'Earthlike body':
