@@ -68,38 +68,27 @@ class SystemScan:
         else:
             self.lbl_bodies['text'] = '-'
 
-    def on_journal_entry(self, entry):
-        update = False
-        if entry['event'] == 'StartUp':
-            self.handle_startup(entry)
-        elif entry['event'] in ['FSDJump', 'CarrierJump']:
-            update = self.handle_system_jump(entry)
-        elif entry['event'] == 'FSSDiscoveryScan':
-            update = self.handle_honk(entry)
-        elif entry['event'] == 'FSSAllBodiesFound':
-            update = self.handle_all_bodies_found(entry)
-        elif entry['event'] == 'Scan':
-            update = self.handle_scan(entry)
-        if update:
-            self.update_ui()
-
-    def handle_startup(self, entry):
+    def handle_startup(self, system):
         self.reset_data()
-        self.system = entry['StarSystem']
+        self.system = system
         self.queue.put(self.system)
         return True
 
-    def handle_system_jump(self, entry):
-        return self.handle_startup(entry)
+    def handle_system_jump(self, system):
+        return self.handle_startup(system)
 
-    def handle_honk(self, entry):
-        self.system = entry['SystemName']
-        self.total = entry['BodyCount']
-        if entry['Progress'] == 1.0:
+    def handle_honk(self, system, bodyCount, progress):
+        self.system = system
+        self.total = bodyCount
+        if progress == 1.0:
             self.count = self.total
         elif self.count == 0:
-            self.count = int(self.total * entry['Progress'])
+            self.count = int(self.total * progress)
 
+        return True
+
+    def handle_all_bodies_found(self, total):
+        self.count = self.total = total
         return True
 
     def handle_scan(self, entry):
@@ -135,10 +124,6 @@ class SystemScan:
             return True
 
         return False
-
-    def handle_all_bodies_found(self, entry):
-        self.count = self.total = entry['Count']
-        return True
 
     def reset_data(self):
         self.system = None
