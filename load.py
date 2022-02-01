@@ -1,29 +1,33 @@
+import sys
+
 from systemscan import SystemScan
 
-s = SystemScan()
+this = sys.modules[__name__]
+this.s = None
 
 def plugin_start3(plugin_dir):
-    return s.load()
+    this.s = SystemScan()
+    return this.s.load()
 
 def plugin_stop():
-    return s.unload()
+    return this.s.unload()
 
 def plugin_app(parent):
-    return s.create_ui(parent)
+    return this.s.create_ui(parent)
 
 def journal_entry(cmdr, is_beta, system, station, entry, state):
     update = False
     if entry['event'] == 'StartUp':
-        s.handle_startup(entry['StarSystem'])
+        this.s.handle_startup(entry['StarSystem'])
     elif entry['event'] in ['FSDJump', 'CarrierJump']:
-        update = s.handle_system_jump(entry['StarSystem'])
+        update = this.s.handle_system_jump(entry['StarSystem'])
     elif entry['event'] == 'FSSDiscoveryScan':
-        update = s.handle_honk(entry['SystemName'],
-                               entry['BodyCount'],
-                               entry['Progress'])
+        update = this.s.handle_honk(entry['SystemName'],
+                                    entry['BodyCount'],
+                                    entry['Progress'])
     elif entry['event'] == 'FSSAllBodiesFound':
-        update = s.handle_all_bodies_found(entry['Count'])
+        update = this.s.handle_all_bodies_found(entry['Count'])
     elif entry['event'] == 'Scan':
-        update = s.handle_scan(entry)
+        update = this.s.handle_scan(entry)
     if update:
-        s.update_ui()
+        this.s.update_ui()
