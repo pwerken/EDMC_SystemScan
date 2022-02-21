@@ -19,7 +19,7 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
     update = False
     if entry['event'] == 'StartUp':
         this.s.handle_startup(entry['StarSystem'])
-    elif entry['event'] in ['FSDJump', 'CarrierJump']:
+    elif entry['event'] in ['Location', 'FSDJump', 'CarrierJump']:
         update = this.s.handle_system_jump(entry['StarSystem'])
     elif entry['event'] == 'FSSDiscoveryScan':
         update = this.s.handle_honk(entry['SystemName'],
