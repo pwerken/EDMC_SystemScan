@@ -15,6 +15,7 @@ class SystemScan:
         self.thead = None
         self.queue = Queue()
         self.edsm_error = False
+        self.show = True
 
     def load(self):
         self.thread = Thread(target=self.worker, name="SystemScan worker")
@@ -28,6 +29,7 @@ class SystemScan:
         self.thread = None
 
     def create_ui(self, parent):
+        self.show = True
         self.lbl_status = tk.Label(parent)
         self.lbl_bodies = tk.Label(parent)
         self.lbl_bodies['justify'] = tk.LEFT
@@ -67,6 +69,17 @@ class SystemScan:
             self.lbl_bodies['text'] = '? error'
         else:
             self.lbl_bodies['text'] = '-'
+
+    def show_ui(self, show):
+        if self.show == show:
+            return
+        self.show = show
+        if self.show:
+            self.lbl_status.grid()
+            self.lbl_bodies.grid()
+        else:
+            self.lbl_status.grid_remove()
+            self.lbl_bodies.grid_remove()
 
     def handle_startup(self, system):
         self.reset_data()

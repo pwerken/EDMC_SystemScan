@@ -1,4 +1,5 @@
 import sys
+import edmc_data
 
 from systemscan import SystemScan
 
@@ -14,6 +15,9 @@ def plugin_stop():
 
 def plugin_app(parent):
     return this.s.create_ui(parent)
+
+def dashboard_entry(cmdr, is_beta, entry):
+    this.s.show_ui(entry['Flags'] & edmc_data.FlagsInMainShip)
 
 def journal_entry(cmdr, is_beta, system, station, entry, state):
     update = False
