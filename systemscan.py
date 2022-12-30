@@ -1,10 +1,11 @@
+import logging
 import requests
 import re
 import tkinter as tk
 
 from queue import Queue
 from threading import Thread
-
+from config import appname
 
 class SystemScan:
 
@@ -16,11 +17,13 @@ class SystemScan:
         self.queue = Queue()
         self.edsm_error = False
         self.show = True
+        self.logger = logging.getLogger(f'{appname}.SystemScan')
 
     def load(self):
         self.thread = Thread(target=self.worker, name="SystemScan worker")
         self.thread.daemon = True
         self.thread.start()
+        self.logger.info('started')
         return 'SystemScan'
 
     def unload(self):
@@ -88,6 +91,7 @@ class SystemScan:
         return True
 
     def handle_system_jump(self, system):
+        self.logger.info(f'arrived in: {system}')
         return self.handle_startup(system)
 
     def handle_honk(self, system, bodyCount, progress):
@@ -164,6 +168,7 @@ class SystemScan:
             if len(self.edsm_data) > 0:
                 continue
 
+            self.logger.debug(f'EDSM? {systemName}')
             data = {'systemName': systemName}
             r = session.post(EDSM_URL, data=data, timeout=EDSM_TIMEOUT)
             reply = r.json()
@@ -190,6 +195,7 @@ class SystemScan:
                     continue
 
                 if body_name not in self.edsm_data:
+                    self.logger.debug(f'EDSM: {systemName} {body_name}')
                     self.edsm_data.append(body_name)
 
             self.edsm_data.sort(key=self.natural_key)
