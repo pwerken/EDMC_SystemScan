@@ -16,6 +16,8 @@ class SystemScan:
         self.thead = None
         self.queue = Queue()
         self.edsm_error = False
+        self.edsm_data = []
+        self.edsm_system = None
         self.show = True
         self.logger = logging.getLogger(f'{appname}.SystemScan')
 
@@ -47,7 +49,9 @@ class SystemScan:
         if not self.lbl_status or not self.lbl_bodies:
             return
 
-        if self.count == self.total and len(self.tomap) < len(self.edsm_data):
+        if self.count == self.total \
+        and len(self.tomap) < len(self.edsm_data) \
+        and self.system == self.edsm_system:
             self.tomap = self.edsm_data
 
         self.lbl_status['text'] = f'{self.count} / {self.total}'
@@ -90,7 +94,12 @@ class SystemScan:
         self.queue.put(self.system)
         return True
 
-    def handle_system_jump(self, system):
+    def handle_jump_start(self, system):
+        self.logger.info(f'jumping to: {system}')
+        self.queue.put(system)
+        return False
+
+    def handle_jump_complete(self, system):
         self.logger.info(f'arrived in: {system}')
         return self.handle_startup(system)
 
@@ -148,7 +157,6 @@ class SystemScan:
         self.count = 0
         self.bodies = []
         self.tomap = []
-        self.edsm_data = []
 
     def worker_update(self, event):
         self.update_ui()
@@ -165,7 +173,7 @@ class SystemScan:
             if systemName is None:
                 return
 
-            if len(self.edsm_data) > 0:
+            if systemName == self.edsm_system:
                 continue
 
             self.logger.debug(f'EDSM? {systemName}')
@@ -182,7 +190,7 @@ class SystemScan:
                 if body['type'] != 'Planet':
                     continue
 
-                body_name = self.truncate_body(body['name'], self.system)
+                body_name = self.truncate_body(body['name'], systemName)
                 if body['subType'] == 'Earth-like world':
                     body_name += 'ᴱᴸᵂ'
                 elif body['subType'] == 'Water world':
@@ -198,6 +206,7 @@ class SystemScan:
                     self.logger.debug(f'EDSM: {systemName} {body_name}')
                     self.edsm_data.append(body_name)
 
+            self.edsm_system = systemName
             self.edsm_data.sort(key=self.natural_key)
             self.lbl_status.event_generate('<<SystemScanUpdate>>', when='tail')
 
