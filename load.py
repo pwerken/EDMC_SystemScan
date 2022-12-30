@@ -22,17 +22,15 @@ def dashboard_entry(cmdr, is_beta, entry):
 def journal_entry(cmdr, is_beta, system, station, entry, state):
     update = False
     if entry['event'] == 'StartUp':
-        this.s.handle_startup(entry['StarSystem'])
+        this.s.handle_startup(entry)
     elif entry['event'] == 'StartJump' and entry['JumpType'] == 'Hyperspace':
-        update = this.s.handle_jump_start(entry['StarSystem'])
+        update = this.s.handle_jump_start(entry)
     elif entry['event'] in ['Location', 'FSDJump', 'CarrierJump']:
-        update = this.s.handle_jump_complete(entry['StarSystem'])
+        update = this.s.handle_jump_complete(entry)
     elif entry['event'] == 'FSSDiscoveryScan':
-        update = this.s.handle_honk(entry['SystemName'],
-                                    entry['BodyCount'],
-                                    entry['Progress'])
+        update = this.s.handle_honk(entry)
     elif entry['event'] == 'FSSAllBodiesFound':
-        update = this.s.handle_all_bodies_found(entry['Count'])
+        update = this.s.handle_all_bodies_found(entry)
     elif entry['event'] == 'Scan':
         update = this.s.handle_scan(entry)
     if update:

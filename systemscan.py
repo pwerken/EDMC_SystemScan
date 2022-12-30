@@ -15,9 +15,9 @@ class SystemScan:
         self.reset_data()
         self.thead = None
         self.queue = Queue()
-        self.edsm_error = False
-        self.edsm_data = []
-        self.edsm_system = None
+        self.external_error = False
+        self.external_data = []
+        self.external_id64 = None
         self.show = True
         self.logger = logging.getLogger(f'{appname}.SystemScan')
 
@@ -50,9 +50,9 @@ class SystemScan:
             return
 
         if self.count == self.total \
-        and len(self.tomap) < len(self.edsm_data) \
-        and self.system == self.edsm_system:
-            self.tomap = self.edsm_data
+        and self.id64 == self.external_id64 \
+        and len(self.tomap) < len(self.external_data):
+            self.tomap = self.external_data
 
         self.lbl_status['text'] = f'{self.count} / {self.total}'
         if self.total == 0:
@@ -72,7 +72,7 @@ class SystemScan:
 
         if len(self.tomap) > 0:
             self.lbl_bodies['text'] = '  '.join(self.tomap)
-        elif self.edsm_error:
+        elif self.external_error:
             self.lbl_bodies['text'] = '? error'
         else:
             self.lbl_bodies['text'] = '-'
@@ -88,33 +88,34 @@ class SystemScan:
             self.lbl_status.grid_remove()
             self.lbl_bodies.grid_remove()
 
-    def handle_startup(self, system):
+    def handle_startup(self, entry):
         self.reset_data()
-        self.system = system
-        self.queue.put(self.system)
+        self.id64 = entry['SystemAddress']
+        self.system = entry['StarSystem']
+        self.queue.put(self.id64)
         return True
 
-    def handle_jump_start(self, system):
-        self.logger.info(f'jumping to: {system}')
-        self.queue.put(system)
+    def handle_jump_start(self, entry):
+        self.queue.put(entry['SystemAddress'])
         return False
 
-    def handle_jump_complete(self, system):
-        self.logger.info(f'arrived in: {system}')
-        return self.handle_startup(system)
+    def handle_jump_complete(self, entry):
+        self.logger.debug(f'{entry["StarSystem"]}')
+        return self.handle_startup(entry)
 
-    def handle_honk(self, system, bodyCount, progress):
-        self.system = system
-        self.total = bodyCount
+    def handle_honk(self, entry):
+        self.id64 = entry['SystemAddress']
+        self.system = entry['SystemName']
+        self.total = entry['BodyCount']
+        progress = entry['Progress']
         if progress == 1.0:
             self.count = self.total
         elif self.count == 0:
             self.count = int(self.total * progress)
-
         return True
 
-    def handle_all_bodies_found(self, total):
-        self.count = self.total = total
+    def handle_all_bodies_found(self, entry):
+        self.count = self.total = entry['Count']
         return True
 
     def handle_scan(self, entry):
@@ -152,6 +153,7 @@ class SystemScan:
         return False
 
     def reset_data(self):
+        self.id64 = None
         self.system = None
         self.total = 0
         self.count = 0
@@ -162,52 +164,56 @@ class SystemScan:
         self.update_ui()
 
     def worker(self):
-        EDSM_URL = 'https://www.edsm.net/api-system-v1/bodies'
-        EDSM_TIMEOUT = 20
-        EDSM_TERRAFORM = [None, 'Not terraformable']
+        URL = 'https://www.spansh.co.uk/api/system'
+        TIMEOUT = 20
+        NOT_TERRAFORM = [None, 'Not terraformable']
 
         session = requests.Session()
-
         while True:
-            systemName = self.queue.get()
-            if systemName is None:
+            id64 = self.queue.get()
+            if id64 is None:
+                self.logger.debug('stopped')
                 return
 
-            if systemName == self.edsm_system:
+            if id64 == self.external_id64:
                 continue
 
-            self.logger.debug(f'EDSM? {systemName}')
-            data = {'systemName': systemName}
-            r = session.post(EDSM_URL, data=data, timeout=EDSM_TIMEOUT)
+            self.external_id64 = id64
+            self.external_error = False
+            self.logger.debug(f'SPANSH {id64} ?')
+            r = session.get(f'{URL}/{id64}', timeout=TIMEOUT)
             reply = r.json()
 
-            self.edsm_error = (len(reply) == 0)
-            if self.edsm_error:
+            if len(reply) == 0 or 'error' in reply:
+                self.logger.debug(f'SPANSH {repr(reply)}')
+                self.external_error = True
                 continue
 
-            self.edsm_data = []
-            for body in reply['bodies']:
+            self.external_data = []
+            system_name = reply['record']['name']
+            self.logger.debug(f'SPANSH {id64} = {system_name}')
+
+            for body in reply['record']['bodies']:
                 if body['type'] != 'Planet':
                     continue
 
-                body_name = self.truncate_body(body['name'], systemName)
-                if body['subType'] == 'Earth-like world':
+                body_name = self.truncate_body(body['name'], system_name)
+                if body['subtype'] == 'Earth-like world':
                     body_name += 'ᴱᴸᵂ'
-                elif body['subType'] == 'Water world':
+                elif body['subtype'] == 'Water world':
                     body_name += 'ᵂᵂ'
-                elif body['subType'] == 'Ammonia world':
+                elif body['subtype'] == 'Ammonia world':
                     body_name += 'ᴬᵂ'
-                elif body['terraformingState'] not in EDSM_TERRAFORM:
+                elif body['terraforming_state'] not in NOT_TERRAFORM:
                     body_name += 'ᵀ'
                 else:
                     continue
 
-                if body_name not in self.edsm_data:
-                    self.logger.debug(f'EDSM: {systemName} {body_name}')
-                    self.edsm_data.append(body_name)
+                if body_name not in self.external_data:
+                    self.logger.debug(f'SPANSH {id64} : {body_name}')
+                    self.external_data.append(body_name)
 
-            self.edsm_system = systemName
-            self.edsm_data.sort(key=self.natural_key)
+            self.external_data.sort(key=self.natural_key)
             self.lbl_status.event_generate('<<SystemScanUpdate>>', when='tail')
 
     @staticmethod
