@@ -3,8 +3,8 @@
 Plugin for [EDMC](https://github.com/EDCD/EDMarketConnector/wiki) that helps
 me with my completionist/OCD of wanting to FSS scan every system I visit.
 
-Additionally it also lists the bodies that are worth mapping, ie ammonia-,
-water-, and earth-like world and the terraformable worlds.
+Additionally it lists the bodies that are worth mapping.
+I.e. ammonia, water, earth-like and terraformable worlds.
 
 ## Installation
 
@@ -22,3 +22,18 @@ When that is also completed the interesting bodies will be listed.
 On entering a system this plugin also queries [EDSM](https://www.edsm.net/)
 for all the bodies.  This is so the interesting bodies can be listed in the
 case where the 'Discovery Scan' reports that FSS is alread complete.
+
+## Preview
+
+On system entry it reminds you to honk the system:
+
+![discovery scan](/preview/discoveryscan.png)
+
+It shows your FSS progress:
+
+![discovery scan](/preview/fullspectrumscan.png)
+
+And when the system scan is complete it lists the ammonia, water, earth-like
+and terraformable worlds.
+
+![discovery scan](/preview/systemscancomplete.png)
