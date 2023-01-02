@@ -13,7 +13,7 @@ class SystemScan:
 
     def __init__(self):
         self.reset_data()
-        self.thead = None
+        self.thread = None
         self.queue = Queue()
         self.external_error = False
         self.external_data = []
@@ -22,16 +22,12 @@ class SystemScan:
         self.logger = logging.getLogger(f'{appname}.SystemScan')
 
     def load(self):
-        self.thread = Thread(target=self.worker, name="SystemScan worker")
-        self.thread.daemon = True
-        self.thread.start()
-        self.logger.info('started')
         return 'SystemScan'
 
     def unload(self):
         self.queue.put(None)
-        self.thread.join()
-        self.thread = None
+        if self.thread:
+            self.thread.join()
 
     def create_ui(self, parent):
         self.show = True
@@ -92,11 +88,12 @@ class SystemScan:
         self.reset_data()
         self.id64 = entry['SystemAddress']
         self.system = entry['StarSystem']
-        self.queue.put(self.id64)
+
+        self.to_worker(self.id64)
         return True
 
     def handle_jump_start(self, entry):
-        self.queue.put(entry['SystemAddress'])
+        self.to_worker(entry['SystemAddress'])
         return False
 
     def handle_jump_complete(self, entry):
@@ -163,6 +160,17 @@ class SystemScan:
     def worker_update(self, event):
         self.update_ui()
 
+    def to_worker(self, id64):
+        self.queue.put(id64)
+        if self.thread and not self.thread.is_alive():
+            self.logger.warning('restarting thread')
+            self.thread.join()
+            self.thread = None
+        if self.thread is None:
+            self.thread = Thread(target=self.worker, name="SystemScan worker")
+            self.thread.daemon = True
+            self.thread.start()
+
     def worker(self):
         URL = 'https://www.spansh.co.uk/api/system'
         TIMEOUT = 20
@@ -174,7 +182,6 @@ class SystemScan:
             if id64 is None:
                 self.logger.debug('stopped')
                 return
-
             if id64 == self.external_id64:
                 continue
 
@@ -215,6 +222,7 @@ class SystemScan:
 
             self.external_data.sort(key=self.natural_key)
             self.lbl_status.event_generate('<<SystemScanUpdate>>', when='tail')
+        self.logger.error('exit?')
 
     @staticmethod
     def truncate_body(body, system):
