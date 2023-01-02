@@ -97,7 +97,6 @@ class SystemScan:
         return False
 
     def handle_jump_complete(self, entry):
-        self.logger.debug(f'{entry["StarSystem"]}')
         return self.handle_startup(entry)
 
     def handle_honk(self, entry):
@@ -180,14 +179,13 @@ class SystemScan:
         while True:
             id64 = self.queue.get()
             if id64 is None:
-                self.logger.debug('stopped')
+                self.logger.info('stopped')
                 return
             if id64 == self.external_id64:
                 continue
 
             self.external_id64 = id64
             self.external_error = False
-            self.logger.debug(f'SPANSH {id64} ?')
             r = session.get(f'{URL}/{id64}', timeout=TIMEOUT)
             reply = r.json()
 
@@ -198,7 +196,6 @@ class SystemScan:
 
             self.external_data = []
             system_name = reply['record']['name']
-            self.logger.debug(f'SPANSH {id64} = {system_name}')
 
             for body in reply['record']['bodies']:
                 if body['type'] != 'Planet':
@@ -217,7 +214,6 @@ class SystemScan:
                     continue
 
                 if body_name not in self.external_data:
-                    self.logger.debug(f'SPANSH {id64} : {body_name}')
                     self.external_data.append(body_name)
 
             self.external_data.sort(key=self.natural_key)
