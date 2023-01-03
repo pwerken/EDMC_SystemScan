@@ -9,8 +9,6 @@ from config import appname
 
 class SystemScan:
 
-    TERRAFORM = ['Terraformable', 'Terraforming', 'Terraformed']
-
     def __init__(self):
         self.reset_data()
         self.thread = None
@@ -131,8 +129,6 @@ class SystemScan:
                 body_name += 'ᵂᵂ'
             elif entry['PlanetClass'] == 'Ammonia world':
                 body_name += 'ᴬᵂ'
-            elif entry['TerraformState'] in self.TERRAFORM:
-                body_name += 'ᵀ'
             else:
                 return True
 
@@ -173,7 +169,6 @@ class SystemScan:
     def worker(self):
         URL = 'https://www.spansh.co.uk/api/system'
         TIMEOUT = 20
-        NOT_TERRAFORM = [None, 'Not terraformable']
 
         session = requests.Session()
         while True:
@@ -208,8 +203,6 @@ class SystemScan:
                     body_name += 'ᵂᵂ'
                 elif body['subtype'] == 'Ammonia world':
                     body_name += 'ᴬᵂ'
-                elif body['terraforming_state'] not in NOT_TERRAFORM:
-                    body_name += 'ᵀ'
                 else:
                     continue
 
