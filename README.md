@@ -3,8 +3,8 @@
 Plugin for [EDMC](https://github.com/EDCD/EDMarketConnector/wiki) that helps
 me with my completionist/OCD of wanting to FSS scan every system I visit.
 
-Additionally it lists the bodies that are worth mapping.
-I.e. ammonia, water, earth-like worlds.
+Additionally it lists the bodies that are worth mapping:
+ammonia, water and earth-like worlds.
 
 ## Installation
 
@@ -16,24 +16,19 @@ I.e. ammonia, water, earth-like worlds.
 ## Usage
 
 When entering the system this plugin will display a red 'Discovery Scan'
-notice.  After honking it will change to a orange 'Full Spectrum Scan'.
-When that is also completed the interesting bodies will be listed.
-
-On entering a system this plugin also queries [EDSM](https://www.edsm.net/)
-for all the bodies.  This is so the interesting bodies can be listed in the
-case where the 'Discovery Scan' reports that FSS is alread complete.
-
-## Preview
-
-On system entry it reminds you to honk the system:
+notice.
 
 ![discovery scan](/preview/discoveryscan.png)
 
-It shows your FSS progress:
+After honking it will change to an orange 'Full Spectrum Scan'.
+This also shows your progress in scanning the system.
 
 ![discovery scan](/preview/fullspectrumscan.png)
 
-And when the system scan is complete it lists the ammonia, water and
-earth-like worlds.
+When completed the interesting bodies will be listed.
 
 ![discovery scan](/preview/systemscancomplete.png)
+
+On entering a system this plugin also queries [Spansh](https://www.spansh.co.uk)
+for all the bodies.  This populates the interesting bodies listed in the
+case where the 'Discovery Scan' reports that FSS is already complete.
