@@ -5,12 +5,14 @@ import tkinter as tk
 
 from queue import Queue
 from threading import Thread
-from config import appname
+from config import appname, user_agent
 
 class SystemScan:
 
     def __init__(self):
         self.reset_data()
+        self.session = requests.Session()
+        self.session.headers['User-Agent'] = user_agent
         self.thread = None
         self.queue = Queue()
         self.external_error = False
@@ -170,7 +172,6 @@ class SystemScan:
         URL = 'https://www.spansh.co.uk/api/system'
         TIMEOUT = 20
 
-        session = requests.Session()
         while True:
             id64 = self.queue.get()
             if id64 is None:
@@ -181,7 +182,7 @@ class SystemScan:
 
             self.external_id64 = id64
             self.external_error = False
-            r = session.get(f'{URL}/{id64}', timeout=TIMEOUT)
+            r = self.session.get(f'{URL}/{id64}', timeout=TIMEOUT)
             reply = r.json()
 
             if len(reply) == 0 or 'error' in reply:
