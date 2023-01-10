@@ -182,17 +182,15 @@ class SystemScan:
 
             self.external_id64 = id64
             self.external_error = False
-            r = self.session.get(f'{URL}/{id64}', timeout=TIMEOUT)
-            reply = r.json()
+            self.external_data = []
 
+            reply = self.session.get(f'{URL}/{id64}', timeout=TIMEOUT).json()
             if len(reply) == 0 or 'error' in reply:
                 self.logger.debug(f'SPANSH {repr(reply)}')
                 self.external_error = True
                 continue
 
-            self.external_data = []
             system_name = reply['record']['name']
-
             for body in reply['record']['bodies']:
                 if body['type'] != 'Planet':
                     continue
