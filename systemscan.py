@@ -84,7 +84,7 @@ class SystemScan:
             self.lbl_status.grid_remove()
             self.lbl_bodies.grid_remove()
 
-    def handle_startup(self, entry):
+    def journal_StartUp(self, entry):
         self.reset_data()
         self.id64 = entry['SystemAddress']
         self.system = entry['StarSystem']
@@ -92,14 +92,21 @@ class SystemScan:
         self.to_worker(self.id64)
         return True
 
-    def handle_jump_start(self, entry):
-        self.to_worker(entry['SystemAddress'])
+    def journal_StartJump(self, entry):
+        if entry['JumpType'] == 'Hyperspace':
+            self.to_worker(entry['SystemAddress'])
         return False
 
-    def handle_jump_complete(self, entry):
-        return self.handle_startup(entry)
+    def journal_Location(self, entry):
+        return self.journal_StartUp(entry)
 
-    def handle_honk(self, entry):
+    def journal_FSDJump(self, entry):
+        return self.journal_StartUp(entry)
+
+    def journal_CarrierJump(self, entry):
+        return self.journal_StartUp(entry)
+
+    def journal_FSSDiscoveryScan(self, entry):
         self.id64 = entry['SystemAddress']
         self.system = entry['SystemName']
         self.total = entry['BodyCount']
@@ -110,11 +117,11 @@ class SystemScan:
             self.count = int(self.total * progress)
         return True
 
-    def handle_all_bodies_found(self, entry):
+    def journal_FSSAllBodiesFound(self, entry):
         self.count = self.total = entry['Count']
         return True
 
-    def handle_scan(self, entry):
+    def journal_Scan(self, entry):
         if entry['ScanType'] == 'NavBeaconDetail':
             return False
 

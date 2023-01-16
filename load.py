@@ -20,18 +20,13 @@ def dashboard_entry(cmdr, is_beta, entry):
     this.s.show_ui(entry['Flags'] & edmc_data.FlagsInMainShip)
 
 def journal_entry(cmdr, is_beta, system, station, entry, state):
-    update = False
-    if entry['event'] == 'StartUp':
-        this.s.handle_startup(entry)
-    elif entry['event'] == 'StartJump' and entry['JumpType'] == 'Hyperspace':
-        update = this.s.handle_jump_start(entry)
-    elif entry['event'] in ['Location', 'FSDJump', 'CarrierJump']:
-        update = this.s.handle_jump_complete(entry)
-    elif entry['event'] == 'FSSDiscoveryScan':
-        update = this.s.handle_honk(entry)
-    elif entry['event'] == 'FSSAllBodiesFound':
-        update = this.s.handle_all_bodies_found(entry)
-    elif entry['event'] == 'Scan':
-        update = this.s.handle_scan(entry)
-    if update:
+    journalfunc_name= f'journal_{entry["event"]}'
+    this.s.logger.info(journalfunc_name)
+    if not hasattr(this.s, journalfunc_name):
+        return
+
+    journalfunc = getattr(this.s, journalfunc_name)
+    if not callable(journalfunc):
+        return
+    if journalfunc(entry):
         this.s.update_ui()
