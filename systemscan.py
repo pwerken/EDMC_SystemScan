@@ -31,18 +31,18 @@ class SystemScan:
 
     def create_ui(self, parent):
         self.show = True
-        self.lbl_status = tk.Label(parent)
-        self.lbl_bodies = tk.Label(parent)
+        self.lbl_bodies = tk.Label(parent, name='systemscan')
         self.lbl_bodies['justify'] = tk.LEFT
         self.lbl_bodies['anchor'] = tk.W
         self.lbl_bodies['wraplength'] = 200
+        self.color_ref = parent.nametowidget('.edmarketconnector.cmdr_label')
         self.update_ui()
 
-        self.lbl_status.bind_all('<<SystemScanUpdate>>', self.worker_update)
-        return self.lbl_status, self.lbl_bodies
+        self.lbl_bodies.bind_all('<<SystemScanUpdate>>', self.worker_update)
+        return self.lbl_bodies
 
     def update_ui(self):
-        if not self.lbl_status or not self.lbl_bodies:
+        if not self.lbl_bodies:
             return
 
         if self.count == self.total \
@@ -50,38 +50,35 @@ class SystemScan:
         and len(self.tomap) < len(self.external_data):
             self.tomap = self.external_data
 
-        self.lbl_status['text'] = f'{self.count} / {self.total}'
         if self.total == 0:
+            text = f'Discovery Scan ({self.count} / {self.total})'
             self.lbl_bodies['fg'] = 'black'
             self.lbl_bodies['bg'] = 'red'
-            self.lbl_bodies['text'] = 'Discovery Scan'
+            self.lbl_bodies['anchor'] = tk.CENTER
+            self.lbl_bodies['text'] = text
             return
 
         if self.count < self.total:
+            text = f'Full Spectrum Scan ({self.count} / {self.total})'
             self.lbl_bodies['fg'] = 'black'
             self.lbl_bodies['bg'] = 'orange'
-            self.lbl_bodies['text'] = 'Full Spectrum Scan'
+            self.lbl_bodies['anchor'] = tk.CENTER
+            self.lbl_bodies['text'] = text
             return
 
-        self.lbl_bodies['fg'] = self.lbl_status['fg']
-        self.lbl_bodies['bg'] = self.lbl_status['bg']
-
-        if len(self.tomap) > 0:
-            self.lbl_bodies['text'] = '  '.join(self.tomap)
-        elif self.external_error:
-            self.lbl_bodies['text'] = '? error'
-        else:
-            self.lbl_bodies['text'] = '-'
+        bodies = ' '.join(self.tomap) or '-'
+        self.lbl_bodies['anchor'] = tk.W
+        self.lbl_bodies['fg'] = self.color_ref['fg']
+        self.lbl_bodies['bg'] = self.color_ref['bg']
+        self.lbl_bodies['text'] = f'{self.total} : {bodies}'
 
     def show_ui(self, show):
         if self.show == show:
             return
         self.show = show
         if self.show:
-            self.lbl_status.grid()
             self.lbl_bodies.grid()
         else:
-            self.lbl_status.grid_remove()
             self.lbl_bodies.grid_remove()
 
     def journal_StartUp(self, entry):
@@ -216,7 +213,7 @@ class SystemScan:
                     self.external_data.append(body_name)
 
             self.external_data.sort(key=self.natural_key)
-            self.lbl_status.event_generate('<<SystemScanUpdate>>', when='tail')
+            self.lbl_bodies.event_generate('<<SystemScanUpdate>>', when='tail')
         self.logger.error('exit?')
 
     @staticmethod
