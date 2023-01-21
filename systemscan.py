@@ -195,7 +195,7 @@ class SystemScan:
 
             reply = self.session.get(f'{URL}/{id64}', timeout=TIMEOUT).json()
             if len(reply) == 0 or 'error' in reply:
-                self.logger.debug(f'SPANSH {repr(reply)}')
+                self.logger.debug(f'SPANSH error\n{repr(reply)}')
                 self.external_error = True
                 continue
 
