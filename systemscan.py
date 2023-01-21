@@ -16,6 +16,7 @@ class SystemScan:
         self.thread = None
         self.queue = Queue()
         self.external_error = False
+        self.external_new = False
         self.external_data = []
         self.external_id64 = None
         self.show = True
@@ -50,8 +51,11 @@ class SystemScan:
         and len(self.tomap) < len(self.external_data):
             self.tomap = self.external_data
 
+        ext = '!!' if self.external_new else '/'
+        ext = '?' if self.external_error else ext
+
         if self.total == 0:
-            text = f'Discovery Scan ({self.count} / {self.total})'
+            text = f'Discovery Scan ({self.count} {ext} {self.total})'
             self.lbl_bodies['fg'] = 'black'
             self.lbl_bodies['bg'] = 'red'
             self.lbl_bodies['anchor'] = tk.CENTER
@@ -59,7 +63,7 @@ class SystemScan:
             return
 
         if self.count < self.total:
-            text = f'Full Spectrum Scan ({self.count} / {self.total})'
+            text = f'Full Spectrum Scan ({self.count} {ext} {self.total})'
             self.lbl_bodies['fg'] = 'black'
             self.lbl_bodies['bg'] = 'orange'
             self.lbl_bodies['anchor'] = tk.CENTER
@@ -70,7 +74,7 @@ class SystemScan:
         self.lbl_bodies['anchor'] = tk.W
         self.lbl_bodies['fg'] = self.color_ref['fg']
         self.lbl_bodies['bg'] = self.color_ref['bg']
-        self.lbl_bodies['text'] = f'{self.total} : {bodies}'
+        self.lbl_bodies['text'] = f'{self.total} {ext} {bodies}'
 
     def show_ui(self, show):
         if self.show == show:
@@ -186,6 +190,7 @@ class SystemScan:
 
             self.external_id64 = id64
             self.external_error = False
+            self.external_new = False
             self.external_data = []
 
             reply = self.session.get(f'{URL}/{id64}', timeout=TIMEOUT).json()
@@ -194,9 +199,14 @@ class SystemScan:
                 self.external_error = True
                 continue
 
-            system_name = reply['record']['name']
-            for body in reply['record']['bodies']:
-                if body['type'] != 'Planet':
+            record = reply['record']
+            body_count = record.get('body_count')
+            self.external_new = not body_count
+            self.external_new |= len(record.get('bodies')) < body_count
+
+            system_name = record['name']
+            for body in record.get('bodies', []):
+                if body.get('type') != 'Planet':
                     continue
 
                 body_name = self.truncate_body(body['name'], system_name)
