@@ -5,9 +5,14 @@ from systemscan import SystemScan
 
 this = sys.modules[__name__]
 this.s = None
+this.journal_funcs = {}
 
 def plugin_start3(plugin_dir):
     this.s = SystemScan()
+    for fname in dir(this.s):
+        func = getattr(this.s, fname, None)
+        if fname.startswith('journal_') and callable(func):
+            this.journal_funcs[fname[8:]] = func
     return this.s.load()
 
 def plugin_stop():
@@ -20,13 +25,6 @@ def dashboard_entry(cmdr, is_beta, entry):
     this.s.show_ui(entry['Flags'] & edmc_data.FlagsInMainShip)
 
 def journal_entry(cmdr, is_beta, system, station, entry, state):
-    journalfunc_name= f'journal_{entry["event"]}'
-    this.s.logger.info(journalfunc_name)
-    if not hasattr(this.s, journalfunc_name):
-        return
-
-    journalfunc = getattr(this.s, journalfunc_name)
-    if not callable(journalfunc):
-        return
-    if journalfunc(entry):
+    func = this.journal_funcs.get(entry["event"])
+    if func and func(entry):
         this.s.update_ui()
