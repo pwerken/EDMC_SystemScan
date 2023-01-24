@@ -200,12 +200,11 @@ class SystemScan:
                 continue
 
             record = reply['record']
-            body_count = record.get('body_count')
-            self.external_new = not body_count
-            self.external_new |= len(record.get('bodies')) < body_count
+            bodies = record.get('bodies', [])
+            self.external_new = len(bodies) < record.get('body_count', 1)
 
             system_name = record['name']
-            for body in record.get('bodies', []):
+            for body in bodies:
                 if body.get('type') != 'Planet':
                     continue
 
