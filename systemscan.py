@@ -9,6 +9,8 @@ from config import appname, user_agent
 
 class SystemScan:
 
+    TERRAFORM = ['Terraformable', 'Terraforming', 'Terraformed']
+
     def __init__(self):
         self.reset_data()
         self.session = requests.Session()
@@ -139,6 +141,8 @@ class SystemScan:
                 body_name += 'ᵂᵂ'
             elif entry['PlanetClass'] == 'Ammonia world':
                 body_name += 'ᴬᵂ'
+            elif entry['TerraformState'] in self.TERRAFORM:
+                body_name += 'ᵀ'
             else:
                 return True
 
@@ -215,6 +219,8 @@ class SystemScan:
                     body_name += 'ᵂᵂ'
                 elif body['subtype'] == 'Ammonia world':
                     body_name += 'ᴬᵂ'
+                elif body.get('terraforming_state') in self.TERRAFORM:
+                    body_name += 'ᵀ'
                 else:
                     continue
 
