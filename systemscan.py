@@ -53,11 +53,11 @@ class SystemScan:
         and len(self.tomap) < len(self.external_data):
             self.tomap = self.external_data
 
-        ext = '!!' if self.external_new else '/'
-        ext = '?' if self.external_error else ext
+        ext = ' !' if self.external_new else ''
+        ext = ' ?' if self.external_error else ext
 
         if self.total == 0:
-            text = f'Discovery Scan ({self.count} {ext} {self.total})'
+            text = f'Discovery Scan {self.count}/?{ext}'
             self.lbl_bodies['fg'] = 'black'
             self.lbl_bodies['bg'] = 'red'
             self.lbl_bodies['anchor'] = tk.CENTER
@@ -65,7 +65,7 @@ class SystemScan:
             return
 
         if self.count < self.total:
-            text = f'Full Spectrum Scan ({self.count} {ext} {self.total})'
+            text = f'Full Spectrum Scan {self.count}/{self.total}{ext}'
             self.lbl_bodies['fg'] = 'black'
             self.lbl_bodies['bg'] = 'orange'
             self.lbl_bodies['anchor'] = tk.CENTER
@@ -73,10 +73,17 @@ class SystemScan:
             return
 
         bodies = ' '.join(self.tomap) or '-'
+        if len(self.tomap) > 0:
+            self.lbl_bodies['anchor'] = tk.W
+            self.lbl_bodies['fg'] = 'black'
+            self.lbl_bodies['bg'] = '#00ff00'
+            self.lbl_bodies['text'] = f'{self.total}{ext} : {bodies}'
+            return
+
         self.lbl_bodies['anchor'] = tk.W
         self.lbl_bodies['fg'] = self.color_ref['fg']
         self.lbl_bodies['bg'] = self.color_ref['bg']
-        self.lbl_bodies['text'] = f'{self.total} {ext} {bodies}'
+        self.lbl_bodies['text'] = f'{self.total}{ext} : {bodies}'
 
     def show_ui(self, show):
         if self.show == show:
