@@ -95,6 +95,9 @@ class SystemScan:
             self.lbl_bodies.grid_remove()
 
     def journal_StartUp(self, entry):
+        if self.id64 == entry['SystemAddress']:
+            return False;
+
         self.reset_data()
         self.id64 = entry['SystemAddress']
         self.system = entry['StarSystem']
